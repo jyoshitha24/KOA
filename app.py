@@ -18,8 +18,7 @@ transform = transforms.Compose([
     transforms.ToPILImage(),
     transforms.Resize((224, 224)),
     transforms.ToTensor(),
-    transforms.Normalize([0.485, 0.456, 0.406],
-                         [0.229, 0.224, 0.225])
+    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 ])
 
 @app.route("/")
@@ -35,19 +34,23 @@ def predict():
     if file.filename == "":
         return jsonify({"error": "No selected file"}), 400
 
-    # Read image and apply transform
-    image = cv2.imdecode(np.frombuffer(file.read(), np.uint8), cv2.IMREAD_COLOR)
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    image = transform(image).unsqueeze(0)
+    try:
+        # Read image and apply transform
+        image = cv2.imdecode(np.frombuffer(file.read(), np.uint8), cv2.IMREAD_COLOR)
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        image = transform(image).unsqueeze(0)
 
-    # Predict
-    with torch.no_grad():
-        outputs = model(image)
-        _, predicted = torch.max(outputs, 1)
-        predicted_class = predicted.item()
+        # Predict
+        with torch.no_grad():
+            outputs = model(image)
+            _, predicted = torch.max(outputs, 1)
+            predicted_class = predicted.item()
 
-    result = severity_levels[predicted_class]
-    return jsonify({"severity": result})
+        result = severity_levels[predicted_class]
+        return jsonify({"severity": result})
+    
+    except Exception as e:
+        return jsonify({"error": f"Error processing the image: {str(e)}"}), 500
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=10000)
